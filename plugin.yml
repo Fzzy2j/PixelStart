@@ -1,0 +1,7 @@
+name: PixelStart
+main: me.fizz.Pixel
+version: 1.0
+description: record
+commands:
+  start:
+  test:
