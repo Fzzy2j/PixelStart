@@ -7,11 +7,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import javax.imageio.ImageIO;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.DyeColor;
 import org.bukkit.Location;
@@ -19,13 +17,13 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.MaterialData;
 import org.bukkit.material.Wool;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 public class Pixel extends JavaPlugin {
 
@@ -123,82 +121,78 @@ public class Pixel extends JavaPlugin {
 
     @SuppressWarnings("deprecation")
     @Override
-    public boolean onCommand(CommandSender sender, Command arg1, String label, String[] args) {
+    public boolean onCommand(final CommandSender sender, Command arg1, String label, String[] args) {
 	if (sender instanceof Player) {
-	    if (label.equalsIgnoreCase("start")) {
-		int tickRate = Integer.parseInt(args[0]);
-		URL url = null;
-		try {
-		    url = new URL(args[1]);
-		    // http://www.somecrap.com/downloads/images/universe/hubblesite/messier_104_sombrero.jpg
-		} catch (MalformedURLException e) {
-		    e.printStackTrace();
-		}
-		try {
-		    final BufferedImage image = ImageIO.read(url);
-		    long start = System.currentTimeMillis();
-		    int time = (image.getHeight() * image.getWidth()) / tickRate;
-		    Bukkit.broadcastMessage("this will run at: " + tickRate + "blocks/s");
-		    Bukkit.broadcastMessage("this will take approx: " + time + " seconds");
-		    Location loc = ((Player) sender).getLocation();
-		    int speed = (int) Math.floor((double) Math.sqrt((double) tickRate / (double) 20));
-		    new BukkitRunnable() {
-			int nex = 0;
-			int ney = 0;
+	    if (sender.isOp()) {
+		if (label.equalsIgnoreCase("start")) {
+		    int tickRate = Integer.parseInt(args[0]);
+		    URL url = null;
+		    try {
+			url = new URL(args[1]);
+			// http://www.somecrap.com/downloads/images/universe/hubblesite/messier_104_sombrero.jpg
+		    } catch (MalformedURLException e) {
+			e.printStackTrace();
+		    }
+		    try {
+			final BufferedImage image = ImageIO.read(url);
+			final long start = System.currentTimeMillis();
+			int time = (image.getHeight() * image.getWidth()) / tickRate;
+			sender.sendMessage("this will run at: " + tickRate + "blocks/s");
+			sender.sendMessage("this will take approx: " + time + " seconds");
+			final Location loc = ((Player) sender).getLocation();
+			final int speed = (int) Math.floor((double) Math.sqrt((double) tickRate / (double) 20));
+			new BukkitRunnable() {
+			    int nex = 0;
+			    int ney = 0;
 
-			@Override
-			public void run() {
+			    @Override
+			    public void run() {
 
-			    nex += speed;
-			    for (int x = nex - speed; x < nex; x++) {
-				if (x >= image.getWidth()) {
-				    ney += speed;
-				    nex = 0;
-				    break;
-				}
-				for (int y = ney; y < ney + speed; y++) {
-				    if (y >= image.getHeight())
+				nex += speed;
+				for (int x = nex - speed; x < nex; x++) {
+				    if (x >= image.getWidth()) {
+					ney += speed;
+					nex = 0;
 					break;
-				    int color = image.getRGB(x, y);
+				    }
+				    for (int y = ney; y < ney + speed; y++) {
+					if (y >= image.getHeight())
+					    break;
+					int color = image.getRGB(x, y);
 
-				    int red = (color & 0x00ff0000) >> 16;
-				    int green = (color & 0x0000ff00) >> 8;
-				    int blue = color & 0x000000ff;
-				    ItemStack block = getClosestColorData(red, green, blue);
-				    Block blocks = loc.clone().add(x, 0, y).getBlock();
-				    blocks.setType(block.getType());
-				    blocks.setData(block.getData().getData());
-				    plugin.blocks++;
+					int red = (color & 0x00ff0000) >> 16;
+					int green = (color & 0x0000ff00) >> 8;
+					int blue = color & 0x000000ff;
+					ItemStack block = getClosestColorData(red, green, blue);
+					Block blocks = loc.clone().add(x, 0, y).getBlock();
+					blocks.setType(block.getType());
+					blocks.setData(block.getData().getData());
+					plugin.blocks++;
+				    }
+				}
+				if (nex + speed > image.getWidth()) {
+				    if (ney > image.getHeight()) {
+					sender.sendMessage(ChatColor.BLUE + "Finished!");
+					long after = (System.currentTimeMillis() - start) / 1000;
+					sender.sendMessage("That was a total of " + plugin.blocks + " blocks!");
+					sender.sendMessage("That took " + after + " seconds!");
+					plugin.blocks = 0;
+					perc = 0;
+					this.cancel();
+				    }
+				}
+				if ((int) (((double) plugin.blocks / (double) (image.getWidth() * image.getHeight())) * 100) != perc) {
+				    perc = (int) (((double) plugin.blocks / (double) (image.getWidth() * image.getHeight())) * 100);
+				    sender.sendMessage(perc + "%");
 				}
 			    }
-			    if (nex + speed > image.getWidth()) {
-				if (ney > image.getHeight()) {
-				    Bukkit.broadcastMessage(ChatColor.BLUE + "Finished!");
-				    long after = (System.currentTimeMillis() - start) / 1000;
-				    Bukkit.broadcastMessage("That was a total of " + plugin.blocks + " blocks!");
-				    Bukkit.broadcastMessage("That took " + after + " seconds!");
-				    plugin.blocks = 0;
-				    perc = 0;
-				    this.cancel();
-				}
-			    }
-			    if ((int) (((double) plugin.blocks / (double) (image.getWidth() * image.getHeight())) * 100) != perc) {
-				perc = (int) (((double) plugin.blocks / (double) (image.getWidth() * image.getHeight())) * 100);
-				Bukkit.broadcastMessage(perc + "%");
-			    }
-			}
-		    }.runTaskTimer(this, 0L, 1L);
-		} catch (IOException e) {
-		    e.printStackTrace();
+			}.runTaskTimer(this, 0L, 1L);
+		    } catch (IOException e) {
+			e.printStackTrace();
+		    }
 		}
-	    }
-	    if (label.equalsIgnoreCase("test")) {
-		int x = 0;
-		for (Entry<String, ItemStack> e : colorMap.entrySet()) {
-		    ItemStack i = e.getValue();
-		    x++;
-		    ((Player) sender).getLocation().clone().add(x, 0, 0).getBlock().setType(i.getType());
-		    ((Player) sender).getLocation().clone().add(x, 0, 0).getBlock().setData(i.getData().getData());
+		if (label.equalsIgnoreCase("testt")) {
+		    ((Player) sender).setVelocity(new Vector(0, Integer.parseInt(args[0]), 0));
 		}
 	    }
 	}
